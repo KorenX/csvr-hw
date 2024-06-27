@@ -83,8 +83,7 @@ def simulate_cache_access(plaintexts, key, start_round, end_round):
             stateround = aes.encrypt_r(plaintexts[j], r, start_round)
             for i in range(NumTables):
                 for l in range(int(BlockSize / NumTables)):
-                    # Edited
-                    # We can use stateround as the indexes for the round (r-1)
+                    # Fixed: We can use stateround as the indexes for the round (r-1)
                     accessed_list[j][i].append((stateround[(i + NumTables*l) % BlockSize]) & 0xf0)
 
 
@@ -136,9 +135,9 @@ def guess_key_high(plaintexts, unaccessed_list):
             guess_list = np.full(2 ** 4, True)
             for j in range(num_traces):
                 for nibble in unaccessed_list[j][i]:
-                    # Edited
-                    accessed = nibble ^ plaintexts[j][(i + NumTables * l) % BlockSize]
-                    guess_list[accessed >> 4] = False
+                    # Fixed: we can use the plaintexts to calculate what was the key that generated the cache nibble accessed
+                    key_nibble_guess = nibble ^ plaintexts[j][(i + NumTables * l) % BlockSize]
+                    guess_list[key_nibble_guess >> 4] = False
 
             # k for Ti in col l
             key_list[(i + NumTables * l) % BlockSize] = [guess << 4 for guess in range(2 ** 4) if guess_list[guess]]
@@ -186,10 +185,9 @@ def find_unviable_candidates(j, T_result, k0_low, viable):
 
     unviable = []
 
-    # Edited
+    # Fixed: We need to loop over all nibbles and check if they are viable
     # col is the column of the AES state after the first round
     col = T_result[j][k0_0][0] ^ T_result[j][k0_1][1] ^ T_result[j][k0_2][2] ^ T_result[j][k0_3][3] 
-    # col_nibbles = [(col >> 4) & 0xf, (col >> 12) & 0xf, (col >> 20) & 0xf, (col >> 28) & 0xf]
     col_nibbles = [(col & 0xf0) >> 4, (col & 0xf000) >> 12, (col & 0xf00000) >> 20, (col & 0xf0000000) >> 28]
     for i in range(NumTables):
         for k1_nibble in range(2 ** 4):
@@ -283,17 +281,13 @@ def guess_k1_ttable(plaintexts, unaccessed_list, k0, verbose=False):
     """
     num_traces = len(plaintexts)
 
-    # Calculate the first round of AES on each trace using k0 as a full 128-bit key (utilizing the AES key schedule)
-    # aes[0] = T0[p[0]^k0[0]] ^ T1[p[5]^k0[5]] ^ T2[p[10]^k0[10]] ^ T3[p[15]^k0[15]]
-    # aes[i] = T0[p[NumTables*i % BlockSize]^k0[...]] ^ T1[p[1 + NumTables*i % BlockSize]^k0[...]] ...
     aes = AESr(k0, 2)
 
     r1 = np.empty(num_traces, dtype=bytearray)
 
+    # Fixed: We can run a single round of AES and run the same algorithm again to find the second round key
     for j in range(num_traces):
         r1[j] = aes.encrypt_r(plaintexts[j], 2, 0, False)
-    # ?
-    pass # TODO
 
     key_list = guess_key_high(r1, unaccessed_list)
 
@@ -317,7 +311,8 @@ def recover_full_key(key_len, k0_list, k1_list):
     :return: list of candidates for the full key
     """
     full_key_list = []
-# Edited
+
+    # Fixed: Use the AES key schefule to generate the full key, and handle different lengths
     if key_len not in [128, 192, 256]:
         raise Exception("unsupported key length")
     
