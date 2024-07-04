@@ -30,6 +30,10 @@ def divfloor(a, b):
     q, r = divmod(a, b)
     return q
 
+def try_with_oracle(k, key, c, oracle, f):
+    attempt = ((pow(f, key.e, key.n) * c) % key.n)
+    return oracle.query(attempt.to_bytes(k, byteorder='big'))
+
 
 def find_f1(k, key, c, oracle):
     """
@@ -41,7 +45,11 @@ def find_f1(k, key, c, oracle):
     :return: f1 such that B/2 <= f1 * m / 2 < B
     """
     f1 = 2
-    ?
+    # Edited: try f1 with the oracle for values 2*i
+    while try_with_oracle(k, key, c, oracle, f1):
+        f1 *= 2
+    return f1
+        
 
 
 def find_f2(k, key, c, f1, oracle):
@@ -55,7 +63,12 @@ def find_f2(k, key, c, f1, oracle):
     :return: f2 such that n <= f2 * m < n + B
     """
     B = 2 ** (8 * (k - 1))
-    ?
+    f2 = divfloor(key.n + B, B) * (f1 // 2)
+    # Edited: Calculate f2 exactly like in Manger
+    # We are mathematically guaranteed that this step will finish
+    while not try_with_oracle(k, key, c, oracle, f2):
+        f2 += f1 // 2
+    return f2
 
 
 def find_m(k, key, c, f2, oracle, verbose=False):
@@ -75,7 +88,16 @@ def find_m(k, key, c, f2, oracle, verbose=False):
     while m_max != m_min:
         if verbose:
             print("Round", count)
-        ?
+        count += 1
+
+        # Edited: Implement Manger's pseudo-code in python (which is basically pseudo-code)
+        f_tmp = divfloor(2*B, m_max - m_min)
+        i = divfloor(f_tmp * m_min, key.n)
+        f3 = divceil(i*key.n, m_min)
+        if try_with_oracle(k, key, c, oracle, f3):
+            m_max = divfloor(i*key.n + B, f3)
+        else:
+            m_min = divceil(i*key.n + B, f3)
     return m_min
 
 
@@ -106,7 +128,15 @@ def manger_attack(k, key, c, oracle, verbose=False):
         return m.to_bytes(k, byteorder='big')
     else:
         return None
-
+    
+def test_result(cipher, key, result, message):
+    """This function tests the (padded) result against the original message.
+        If they are the same it prints the message (as calculated from the result)
+    """
+    result_encrypted = pow(int.from_bytes(result, byteorder='big'), key.e, key.n)
+    m = cipher.decrypt(result_encrypted.to_bytes(k, byteorder='big'))
+    if m == message:
+        print(m)
 
 if __name__ == "__main__":
     n_length = 1024
@@ -122,4 +152,4 @@ if __name__ == "__main__":
     c = cipher.encrypt(message)
 
     result = manger_attack(k, pub_key, c, oracle, True)
-    print(result)
+    test_result(cipher, key, result, message)
