@@ -26,7 +26,8 @@ class PKCS1_v1_5_Oracle(Oracle):
         :param input: bytearray of size k, where k=n_length/8
         :return: True if input is a valid encryption, False else
         """
-        if self.cipher.decrypt(input, None) is None:
+        res = self.cipher.decrypt(input, None)
+        if res is None or len(res) == 0:
             return False
         return True
 

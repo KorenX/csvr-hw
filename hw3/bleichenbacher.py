@@ -76,7 +76,6 @@ def merge_intervals(intervals):
     merged.append(curr)
     return merged
 
-
 def blinding(k, key, c, oracle):
     """
     Step 1 of the attack
@@ -91,7 +90,10 @@ def blinding(k, key, c, oracle):
     while True:
         s_0 = urandom(k)
         s_0 = int.from_bytes(s_0, byteorder='big') % key.n
-        ?
+        # Edited: calculate the initial s_0 by randomly trying 
+        c_0 = ((pow(s_0, key.e, key.n) * c) % key.n)
+        if oracle.query(c_0.to_bytes(k, byteorder='big')):
+            return s_0, c_0
 
 
 def find_min_conforming(k, key, c_0, min_s, oracle):
@@ -104,7 +106,13 @@ def find_min_conforming(k, key, c_0, min_s, oracle):
     :param oracle: oracle that checks ciphertext conformity
     :return: smallest s >= min_s s.t. (c_0 * (s ** e)) mod n represents a conforming ciphertext
     """
-    ?
+    # Edited: iterate options until we find a fitting minimal valid s
+    s = min_s
+    while True:
+        c = ((pow(s, key.e, key.n) * c_0) % key.n)
+        if oracle.query(c.to_bytes(k, byteorder='big')):
+            return s
+        s += 1
 
 
 def search_single_interval(k, key, B, prev_s, a, b, c_0, oracle):
@@ -120,7 +128,16 @@ def search_single_interval(k, key, B, prev_s, a, b, c_0, oracle):
     :param oracle: oracle that checks ciphertext conformity
     :return: s s.t. (c_0 * (s ** e)) mod n represents a conforming ciphertext
     """
-    ?
+    # Edited: iterate options for r_i and s_i until we find a fitting minimal valid s
+    r = 2 * divceil(b * prev_s - 2 * B, key.n)
+    while True:
+        min_s = divceil(2 * B + r * key.n, b)
+        max_s = divfloor(3 * B + r * key.n, a)
+        for s in range(min_s, max_s + 1):
+            c = ((pow(s, key.e, key.n) * c_0) % key.n)
+            if oracle.query(c.to_bytes(k, byteorder='big')):
+                return s
+        r += 1
 
 
 def narrow_m(key, m_prev, s, B):
@@ -134,11 +151,13 @@ def narrow_m(key, m_prev, s, B):
     """
     intervals = []
     for a, b in m_prev:
-        min_r = ?
-        max_r = ?
+        # Edited: choose the ranges for the intervals
+        min_r = divceil(a * s - 3 * B + 1, key.n)
+        max_r = divfloor(b * s - 2 * B, key.n)
         for r in range(min_r, max_r + 1):
-            start = ?
-            end = ?
+            # Edited: calc the actual intervals
+            start = max(a, divceil(2 * B + r * key.n, s))
+            end = min(b, divfloor(3 * B - 1 + r * key.n, s))
             intervals.append((start, end))
 
     return merge_intervals(intervals)
@@ -179,7 +198,9 @@ def bleichenbacher_attack(k, key, c, oracle, verbose=False):
         m = narrow_m(key, m, s, B)
 
         if len(m) == 1 and m[0][0] == m[0][1]:
-            result = ?
+            # Edited: take the inverse of the found value - that is the plain text
+            a = m[0][0]
+            result = ((modinv(s_0, key.n) * a) % key.n)
             break
         i += 1
 
