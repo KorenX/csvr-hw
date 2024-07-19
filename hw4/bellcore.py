@@ -62,7 +62,8 @@ class RSA_oracle(RSA_CRT):
         """
         m_p = self._dec_mod_p(c)
         m_q = self._dec_mod_q(c)
-        ?
+        # Edited: M is just the CRT output of m_p, m_q
+        return self.CRT(m_p, m_q)
 
     def faulty_dec(self, c):
         """
@@ -72,7 +73,18 @@ class RSA_oracle(RSA_CRT):
         """
         m_p = self._faulty_dec_mod_p(c)
         m_q = self._dec_mod_q(c)
-        ?
+        # Edited: M is just the CRT output of m_p, m_q
+        return self.CRT(m_p, m_q)
+
+
+    def CRT(self, m_p, m_q):
+        """
+        Combine m_p and m_q to find m, exactly as was shown in class
+        :param m_p: m mod p
+        :param m_q: m mod q
+        :return: m
+        """
+        return (m_p * self._q * self._q_inv + m_q * self._p * self._p_inv) % self.n
 
 
 def bellcore_attack(rsa):
@@ -81,7 +93,13 @@ def bellcore_attack(rsa):
     :param rsa: RSA decryption oracle that may calculate c ^ d mod p incorrectly.
     :return: p, q, where p * q = n
     """
-    ?
+    # Edited: Decrypt a message once regularly and once with a fault.
+    # We then know that q=gcd(n, M-M') and p=N/q (we would have gotten swapped p,q if the fault was in m_q)
+    MESSAGE_TO_DECRYPT = 0x1000
+    m = rsa.dec(MESSAGE_TO_DECRYPT)
+    m_prime = rsa.faulty_dec(MESSAGE_TO_DECRYPT)
+    q = abs(egcd(rsa.n, m - m_prime)[0])
+    p = rsa.n // q
 
     # Test the output
     if p * q == rsa.n:
@@ -95,7 +113,9 @@ def main():
     key = RSA.generate(n_length)
 
     rsa = RSA_oracle(key)
+    # print(rsa._p, rsa._q)
     print(bellcore_attack(rsa))
+    # print(bellcore_attack(rsa) == (rsa._p, rsa._q))
 
 
 if __name__ == "__main__":
