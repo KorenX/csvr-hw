@@ -16,9 +16,9 @@ def cut_blocks(c, nonce, t):
     """
     c_t = c[t * BLOCK_LEN: (t + 1) * BLOCK_LEN]
     if t == 0:
-        c_t_prev = ?
+        c_t_prev = nonce
     else:
-        c_t_prev = ?
+        c_t_prev = c[(t - 1) * BLOCK_LEN: t * BLOCK_LEN]
 
     return c_t_prev, c_t
 
@@ -36,9 +36,13 @@ def lucky_13(c, nonce, t, oracle):
 
     c_t_prev, c_t = cut_blocks(c, nonce, t)
     c_t_prev = int.from_bytes(c_t_prev, byteorder='big')
-
     for two_bytes in range(2 ** 16):
-        ?
+        c_t_prev_try = c_t_prev ^ two_bytes
+        # the actual value of the first two blocks to decrypt doesn't matter.
+        four_blocks_try = b'0' * (2 * BLOCK_LEN) + c_t_prev_try.to_bytes(BLOCK_LEN, byteorder="big") + c_t
+        if oracle.query([four_blocks_try, nonce]) == oracle.few_calls:
+            # now we xor with 0101 because that is the value we are trying to get
+            candidates.append((two_bytes ^ 0x0101).to_bytes(2, byteorder="big"))
     return candidates
 
 
