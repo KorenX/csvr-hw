@@ -13,7 +13,27 @@ def find_cycle(f, k, start):
     :param start: starting point for the algorithm
     :return: x, where x is a point inside of a cycle
     """
-    ?
+    stacks = []
+    for _ in range(k):
+        stacks.append([])
+    
+    stacks[start % k].append(start)
+    next = start
+    while True:
+        next = f.calc(next)
+        if next in stacks[next % k]:
+            return next
+
+        if (len(stacks[next % k]) == 0):
+            stacks[next % k].append(next)
+            continue
+
+        while stacks[next % k][-1] > next:
+            stacks[next % k].pop()
+            if len(stacks[next % k]) == 0:
+                break
+        stacks[next % k].append(next)
+
 
 
 def main():
