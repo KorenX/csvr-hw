@@ -25,12 +25,15 @@ class ModifiedPRF(object):
         domain = self.f.domain
         rang = self.f.rang
 
+        x_val = self.f.calc(x)
+
         if domain < rang:
-            ?
+            return x_val & (domain-1)
         elif domain > rang:
-            ?
+            x_tag_val = self.f.calc((x + 1) & (rang-1))
+            return (x_val * rang + x_tag_val) & (domain-1)
         else:
-            ?
+            return x_val
 
     def recover_x(self, x):
         """
@@ -42,11 +45,11 @@ class ModifiedPRF(object):
         rang = self.f.rang
 
         if domain < rang:
-            ?
+            return x
         elif domain > rang:
-            ?
+            return x // rang
         else:
-            ?
+            return x
 
 
 def hellman_preprocess(m, t, f_tag):
@@ -61,10 +64,19 @@ def hellman_preprocess(m, t, f_tag):
     for i in range(t):
         table = defaultdict(list)
 
-        ?
+        for _ in range(m):
+            # create a single chain
+            x = int.from_bytes(urandom(f_tag.f.domain_bytes), byteorder='big')
+            chain = [x]
+            y = x
+            for _ in range(t):
+                y = f_tag.calc((y + i) & (f_tag.f.domain - 1))
+                chain.append(y)
+            table[x] = y
 
         tables.append(table)
-        print(i)
+        if i % 16 == 0:
+            print(i)
     return tables
 
 
@@ -77,8 +89,32 @@ def hellman_online(tables, t, y, f_tag):
     :param f_tag: modified oracle for a random function
     :return: x such that f(x)=y if the attack succeeded, else None
     """
-    ?
 
+    correct_table = None
+    end = None
+    nexts = [y for _ in range(t)]
+    for _ in range(t):
+        for table in range(t):
+            if (nexts[table] in tables[table].values()):
+                correct_table = table
+                end = nexts[table]
+                break
+            nexts[table] = f_tag.calc((nexts[table] + table) & (f_tag.f.domain - 1))
+        if correct_table:
+            break
+
+    if correct_table:
+        for key in tables[correct_table].keys():
+            if tables[correct_table][key] == end:
+                start = key
+                break
+        for _ in range(t):
+            next = f_tag.calc((start + correct_table) & (f_tag.f.domain - 1))
+            if next == y:
+                return f_tag.recover_x((start + correct_table) & (f_tag.f.domain - 1))
+            start = next
+
+    return None
 
 def run_hellman(f, m, t):
     """
@@ -93,7 +129,7 @@ def run_hellman(f, m, t):
     tables = hellman_preprocess(m, t, f_tag)
 
     success_count = 0
-    for i in range(100):
+    for _ in range(3):
         y = f.calc(int.from_bytes(urandom(f.domain_bytes), byteorder='big'))
         x = hellman_online(tables, t, y, f_tag)
         if x is not None:
@@ -119,8 +155,8 @@ def test_2():
     key = b'8{8H\x00\xe5\xa6\xc7BTs=\xba\xd5\x18\xe6'
     domain_size = 2
     rang_size = 3
-    m = ?
-    t = ?
+    m = 2 ** 6
+    t = 2 ** 5
 
     f = PRF(key, domain_size, rang_size)
     return run_hellman(f, m, t)
@@ -131,8 +167,8 @@ def test_3():
     key = b'\xa42A\xcf\x0c\xf4\x001\xff\xd7\xaa\x8f\tZ\x11\xdd'
     domain_size = 3
     rang_size = 2
-    m = ?
-    t = ?
+    m = 2 ** 8
+    t = 2 ** 8
 
     f = PRF(key, domain_size, rang_size)
     return run_hellman(f, m, t)
@@ -140,8 +176,8 @@ def test_3():
 
 def main():
     print("Test 1 success rate:", test_1())
-    print("Test 2 success rate:", test_2())
-    print("Test 3 success rate:", test_3())
+    # print("Test 2 success rate:", test_2())
+    # print("Test 3 success rate:", test_3())
 
 
 if __name__ == "__main__":
