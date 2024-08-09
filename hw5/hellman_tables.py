@@ -41,9 +41,7 @@ class ModifiedPRF(object):
         domain = self.f.domain
         rang = self.f.rang
 
-# TODO
         if domain < rang:
-            # self.calc_new(x) = self.f.calc(x) % domain = y
             return (x%domain)
         elif domain > rang:
             return x + ((x + 1)%domain)*rang
