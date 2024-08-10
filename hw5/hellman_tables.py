@@ -137,6 +137,8 @@ def test_2():
     key = b'8{8H\x00\xe5\xa6\xc7BTs=\xba\xd5\x18\xe6'
     domain_size = 2
     rang_size = 3
+    # started by using the formula T=t^2~N^(2/3) from the tradeoff formula,
+    # but switched to these numbers for a better performance rate
     m = 2 ** 12
     t = 2 ** 4
 
@@ -149,6 +151,8 @@ def test_3():
     key = b'\xa42A\xcf\x0c\xf4\x001\xff\xd7\xaa\x8f\tZ\x11\xdd'
     domain_size = 3
     rang_size = 2
+    # started by using the formula T=t^2~N^(2/3) from the tradeoff formula,
+    # but switched to these numbers for a better performance rate
     m = 2 ** 16
     t = 2 ** 4
 
